@@ -1022,7 +1022,7 @@ div.cmp .tbl-wrap{margin:0;border:0;border-radius:0}
 .hm-home-card:hover{border-color:var(--accent-line)}
 .hm-home-card .mi{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:var(--mod-soft,var(--accent-soft));color:var(--mod,var(--accent-ink));font-weight:700;font-size:13px}
 .hm-home-card .t b{display:block;font-size:14px}.hm-home-card .t small{color:var(--muted);font-size:12px}
-.hm-home-card .go{color:var(--muted);font-size:12px}.hm-home-card .bar{grid-column:1/-1}
+.hm-home-card .go{color:var(--muted);font-size:12px;grid-row:1;grid-column:3;white-space:nowrap}.hm-home-card .bar{grid-column:1/-1}
 .side-hl{color:var(--accent-ink)}.side-hl .ic-map{width:14px;height:14px;margin:0 2px 0 -2px}
 @media (max-width:860px){
   .hm-layout{grid-template-columns:1fr;gap:8px}
@@ -1089,7 +1089,7 @@ div.cmp .tbl-wrap{margin:0;border:0;border-radius:0}
       </button>
       <a class="brand" href="#/" aria-label="回到冲刺台">
         <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 7 3 12l5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></span>
-        <span class="brand-text"><strong>面试手册</strong><em>v16</em></span>
+        <span class="brand-text"><strong>面试手册</strong><em>v17</em></span>
       </a>
       <nav class="modnav" id="modnav" aria-label="模块"></nav>
       <div class="top-actions">
@@ -8852,27 +8852,6 @@ const METHOD = [
   ['03', '层次遍历展开', '先答主干，再根据面试官反馈一层层深入，每层都能收住。', '缓存一致性：先更新 DB 再删缓存 → 删除失败怎么办 → 并发读写 → 能否强一致'],
   ['04', '万事不离项目', '每个知识点都准备一句项目落地，证明不是背题。', '「Kafka 我在通知异步投递里用过，积压时……」'],
 ];
-let todayOff = 0;
-function pickToday() {
-  const pool = [];
-  Object.entries(PROG).filter(([, v]) => v.s === 1).sort((a, b) => a[1].t - b[1].t).forEach(([k]) => pool.push({ key: k, why: '上次标记为模糊' }));
-  const st = (e) => statusOf(e.progressKey || e.id);
-  const qas = (mod) => { const r = []; ORDER.filter((e) => e.kind === 'qa' && e.mod === mod).forEach((e) => e.items.forEach((it, i) => { if (!statusOf(qKey(e.id, i))) r.push({ key: qKey(e.id, i), why: '未学 · ' + e.cat }); })); return r; };
-  const algo = ORDER.filter((e) => e.kind === 'algo' && !st(e)).map((e) => ({ key: e.id, why: '未学算法 · ' + e.cat }));
-  const scene = ORDER.filter((e) => (e.kind === 'scenario' || e.kind === 'handwrite' || e.kind === 'database') && e.number !== 0 && !st(e)).map((e) => ({ key: e.id, why: KIND_LABEL[e.kind] }));
-  const out = pool.slice(0, 2);
-  const take = (arr, n) => { if (!arr.length) return; const s = (todayOff * n) % arr.length; for (let j = 0; j < arr.length && n > 0; j++) { const x = arr[(s + j) % arr.length]; if (!out.some((o) => o.key === x.key)) { out.push(x); n--; } } };
-  take(algo, 2); take(qas('bagu'), 2); take(qas('ai'), 1); take(scene, 1);
-  return out.slice(0, 7);
-}
-function resolveKey(key) {
-  const [eid, qi] = key.split('#');
-  const e = byId.get(eid);
-  if (!e) return null;
-  if (qi != null && e.items) { const it = e.items[+qi]; return it ? { e, title: stripTags(it.q), href: href(e, +qi), sub: e.title } : null; }
-  return { e, title: (e.kind === 'algo' ? e.number + '. ' : '') + e.title, href: href(e), sub: e.kind === 'algo' ? e.part : e.cat };
-}
-let todaySeed = Number(new Date().toISOString().slice(0, 10).replace(/-/g, ''));
 function renderNotFound(id) {
   return `<section class="hero nf"><h1>未找到</h1><p>没有找到页面 <code class="tok-inline">${h(id)}</code>，可能是旧链接或拼写有误。</p>
     <div class="meta"><a class="btn primary" href="#/">返回冲刺台</a><button type="button" class="btn" onclick="openPalette&&openPalette()">搜索</button></div></section>`;
@@ -8883,7 +8862,6 @@ function renderHome() {
   const recent = store.get('iv8-recent', []).map((id) => byId.get(id)).filter(Boolean);
   const last = recent[0];
   const weeksDone = store.get('iv8-weeks', {});
-  const today = pickToday().map((x) => ({ ...x, r: resolveKey(x.key) })).filter((x) => x.r);
   const mods = MODS.filter((m) => TREE[m.id]).map((m) => {
     const u = unitsOf(TREE[m.id].all);
     return `<a class="mod-card" href="#/m/${m.id}" style="${modColor(m.id)}"><div class="top"><span class="mi">${m.icon}</span><h3>${h(m.full)}</h3></div>
@@ -8894,8 +8872,6 @@ function renderHome() {
       <p>简历负责吸引追问，项目负责承载追问，八股负责支撑追问，面试技巧负责把答案讲清楚。这里把算法手撕、场景设计、八股问答和面试策略串成一套可以每天推进的复习体系。</p>
       <div class="meta"><span class="chip">${ENTRIES.length} 条目</span><span class="chip">${all.total} 复习单元</span><span class="chip accent">已掌握 <b>${all.ok}</b> / ${all.total} 单元</span>${all.fuzzy ? `<span class="chip">模糊 <b>${all.fuzzy}</b></span>` : ''}</div></section>
     ${last ? `<h2 class="dash-h">继续上次</h2><div class="today"><a href="${href(last)}" style="${modColor(last.mod)}"><span class="dot s${entryStatus(last)}"></span><span class="t">${h(last.title)}<span class="why">${h(MOD[last.mod].full)} · ${h(last.cat)}</span></span><span class="w">继续 →</span></a></div>` : ''}
-    <h2 class="dash-h">今日复习 <small>模糊项优先 · 其余按页面顺序取未学</small><button type="button" class="btn act" data-act="reroll">${ICON.shuffle}换一批</button></h2>
-    <div class="today">${today.map((x) => `<a href="${x.r.href}"><span class="dot s${statusOf(x.key)}"></span><span class="t">${h(x.r.title)}<span class="why">${h(x.why)} · ${h(x.r.sub)}</span></span><span class="w">${h(MOD[x.r.e.mod].name)}</span></a>`).join('')}</div>
     <h2 class="dash-h">模块</h2><div class="mod-grid">${mods}</div>
     <h2 class="dash-h">四周冲刺 <small>勾选会保存在本机浏览器</small></h2>
     <div class="weeks">${WEEKS.map((w) => `<div class="week"><header><b>${w.n}</b><strong>${h(w.t)}</strong></header><p class="goal">${h(w.goal)}</p>
@@ -9089,7 +9065,7 @@ function render() {
     buildRail();
     updateQaStat();
     if (e) { pushRecent(e.id); store.set('iv8-last', e.id); }
-    document.title = (e ? e.title : r.view === 'mod' ? MOD[mod].full : r.view === 'hl' ? MOD[mod].full + ' · 重点地图' : (r.view === 'nf' ? '未找到' : '冲刺台')) + ' · 面试手册 v16';
+    document.title = (e ? e.title : r.view === 'mod' ? MOD[mod].full : r.view === 'hl' ? MOD[mod].full + ' · 重点地图' : (r.view === 'nf' ? '未找到' : '冲刺台')) + ' · 面试手册 v17';
     window.scrollTo(0, 0);
   }
   if (r.q != null) focusQuestion(r.q, true);
@@ -9321,7 +9297,6 @@ document.addEventListener('click', (ev) => {
   if (act === 'copy-code') { copyText(codeOf(actEl.closest('.code-card')), '代码已复制'); return; }
   if (act === 'copy-link') { copyText(location.href, '链接已复制'); return; }
   if (act === 'focus') { toggleFocus(); return; }
-  if (act === 'reroll') { todayOff += 1; rerender(); return; }
   if (t.closest('.viz-replay')) {
     const fig = t.closest('.viz'); const cur = fig.querySelector('svg');
     if (cur) { const fresh = cur.cloneNode(true); cur.replaceWith(fresh); staggerViz(fresh); }
